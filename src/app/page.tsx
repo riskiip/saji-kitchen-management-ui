@@ -158,7 +158,6 @@ export default function CashierPage() {
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
         <header className="p-4 bg-white dark:bg-gray-800 shadow-md flex justify-between items-center">
           <h1 className="text-2xl font-bold text-red-700">Saji Cashier</h1>
-          <ThemeToggle />
         </header>
 
         <main className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-8">
