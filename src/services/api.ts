@@ -13,6 +13,11 @@ interface CreateOrderRequest {
     items: OrderItemRequest[];
 }
 
+interface LoginRequest {
+    username: string;
+    password: string;
+}
+
 // Buat instance axios dengan URL dasar backend Anda
 const apiClient = axios.create({
     baseURL: 'http://localhost:8080/api/v1', // <-- Ganti jika URL backend berbeda
@@ -68,3 +73,20 @@ export const confirmPayment = async (orderId: string) => {
         throw error;
     }
 };
+
+// Fungsi login
+export const login = async (credentials: LoginRequest) => {
+    const response = await apiClient.post('/auth/login', credentials);
+    return response.data;
+};
+
+// Interceptor untuk menyisipkan token
+apiClient.interceptors.request.use(config => {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+}, error => {
+    return Promise.reject(error);
+});

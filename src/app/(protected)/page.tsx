@@ -29,7 +29,7 @@ type CartItem = {
 
 
 // --- Komponen Utama ---
-export default function CashierPage() {
+function CashierPage() {
   const [products, setProducts] = useState<ProductVariant[]>([]);
   const [toppings, setToppings] = useState<Topping[]>([]);
   const [isMenuLoading, setIsMenuLoading] = useState(true);
@@ -298,3 +298,5 @@ export default function CashierPage() {
       </div>
   );
 }
+
+export default CashierPage;
