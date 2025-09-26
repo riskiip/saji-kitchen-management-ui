@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { createOrder, confirmPayment, getProducts, getToppings } from '@/services/api';
-import { ThemeToggle } from '@/components/theme-toggle';
+import {useRouter} from "next/navigation";
+import Image from "next/image";
 
 // --- Tipe Data ---
 type ProductVariant = {
@@ -30,6 +31,7 @@ type CartItem = {
 
 // --- Komponen Utama ---
 function CashierPage() {
+  const router = useRouter();
   const [products, setProducts] = useState<ProductVariant[]>([]);
   const [toppings, setToppings] = useState<Topping[]>([]);
   const [isMenuLoading, setIsMenuLoading] = useState(true);
@@ -43,6 +45,11 @@ function CashierPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showToppingModal, setShowToppingModal] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
+
+  const handleLogout = () => {
+    localStorage.removeItem('authToken'); // Hapus token dari penyimpanan
+    router.push('/login'); // Arahkan kembali ke halaman login
+  };
 
   // --- Mengambil Data Awal ---
   useEffect(() => {
@@ -163,10 +170,16 @@ function CashierPage() {
   };
 
   return (
-      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-        <header className="p-4 bg-white dark:bg-gray-800 shadow-md flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-red-700">Saji Cashier</h1>
-          <ThemeToggle />
+      <div className="min-h-screen bg-[#FFF3D9] text-[#4a4a4a]">
+        <header className="p-4 shadow-md flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-[#940303]">Saji Cashier</h1>
+          <button
+              onClick={handleLogout}
+              className="px-4 py-2 text-sm font-semibold text-white bg-[#940303] rounded-md hover:bg-red-700"
+              aria-label="Logout"
+          >
+            Logout
+          </button>
         </header>
 
         <main className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-8">
@@ -180,7 +193,7 @@ function CashierPage() {
                       <button
                           key={variant.id}
                           onClick={() => openToppingModal(variant)}
-                          className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow hover:scale-105 transform transition-transform duration-200 text-left"
+                          className="p-4 bg-[#ffe89e] text-[#4a4a4a] rounded-lg shadow hover:scale-105 transform transition-transform duration-200 text-left"
                       >
                         <p className="font-bold">{variant.productName}</p>
                         <p className="text-sm text-gray-600 dark:text-gray-400">{variant.name}</p>
@@ -193,7 +206,7 @@ function CashierPage() {
             )}
           </section>
 
-          <aside className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg h-fit">
+          <aside className="bg-[#ffe89e]  p-6 rounded-lg shadow-lg h-fit">
             <h2 className="text-xl font-semibold mb-4 border-b pb-2 dark:border-gray-700">Pesanan</h2>
             {cart.length === 0 ? (
                 <p className="text-gray-500">Keranjang masih kosong.</p>
@@ -205,9 +218,9 @@ function CashierPage() {
                           <div className="flex-1">
                             <p className="font-semibold">{item.name}</p>
                             <div className="flex items-center gap-2 mt-1">
-                              <button onClick={() => updateQuantity(item.id, -1)} className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 font-bold">-</button>
+                              <button onClick={() => updateQuantity(item.id, -1)} className="w-6 h-6 rounded-full bg-[#940303] text-[#fff] font-bold">-</button>
                               <span>{item.quantity}</span>
-                              <button onClick={() => updateQuantity(item.id, 1)} className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 font-bold">+</button>
+                              <button onClick={() => updateQuantity(item.id, 1)} className="w-6 h-6 rounded-full bg-[#940303] text-[#fff] font-bold">+</button>
                             </div>
                           </div>
                           <div className="text-right">
@@ -227,7 +240,7 @@ function CashierPage() {
                     <button
                         onClick={() => setShowEmailModal(true)}
                         disabled={cart.length === 0}
-                        className="w-full mt-4 bg-red-600 text-white font-bold py-3 rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        className="w-full mt-4 bg-[#940303] text-white font-bold py-3 rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
                       Bayar
                     </button>
@@ -238,41 +251,41 @@ function CashierPage() {
         </main>
 
         {showToppingModal && selectedVariant && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-md">
+            <div className="fixed inset-0 bg-[#FFF3D9] bg-opacity-80 flex items-center justify-center p-4">
+              <div className="bg-[#ffe89e] p-6 rounded-lg shadow-xl w-full max-w-md">
                 <h3 className="text-lg font-bold mb-1">{selectedVariant.productName}</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{selectedVariant.name}</p>
                 <div className="space-y-2">
                   <h4 className="font-semibold">Pilih Topping:</h4>
                   {toppings.map((topping) => (
-                      <button key={topping.id} onClick={() => addToCart(selectedVariant, topping)} className="w-full text-left p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 flex justify-between">
+                      <button key={topping.id} onClick={() => addToCart(selectedVariant, topping)} className="w-full text-left p-3 rounded-lg hover:bg-[#e91e63] hover:text-[#fff] flex justify-between">
                         <span>{topping.name}</span>
                         <span className="font-semibold">+ {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(topping.price)}</span>
                       </button>
                   ))}
-                  <button onClick={() => addToCart(selectedVariant, null)} className="w-full text-left p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 font-semibold">
+                  <button onClick={() => addToCart(selectedVariant, null)} className="w-full text-left p-3 rounded-lg hover:bg-[#e91e63] hover:text-[#fff] font-semibold">
                     Tanpa Topping
                   </button>
                 </div>
-                <button onClick={() => setShowToppingModal(false)} className="mt-6 w-full py-2 rounded text-gray-600 dark:text-gray-300 bg-gray-200 dark:bg-gray-700">Batal</button>
+                <button onClick={() => setShowToppingModal(false)} className="mt-6 w-full py-2 rounded bg-[#940303] text-[#fff]">Batal</button>
               </div>
             </div>
         )}
 
         {showEmailModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-              <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md">
+            <div className="fixed inset-0 bg-[#FFF3D9] bg-opacity-50 flex items-center justify-center">
+              <div className="bg-[#ffe89e] p-8 rounded-lg shadow-xl w-full max-w-md">
                 <h3 className="text-xl font-bold mb-4">Masukkan Email Pelanggan</h3>
                 <input
                     type="email"
                     value={customerEmail}
                     onChange={(e) => setCustomerEmail(e.target.value)}
                     placeholder="contoh@email.com"
-                    className="w-full p-2 border rounded bg-gray-200 dark:bg-gray-700 dark:border-gray-600 mb-4"
+                    className="w-full p-2 border rounded dark:border-gray-600 mb-4 text-black"
                 />
                 <div className="flex justify-end gap-4">
-                  <button onClick={() => setShowEmailModal(false)} className="px-4 py-2 rounded text-gray-600 dark:text-gray-300">Batal</button>
-                  <button onClick={handleProcessOrder} disabled={isLoading} className="px-6 py-2 bg-red-600 text-white font-bold rounded hover:bg-red-700 disabled:bg-gray-400">
+                  <button onClick={() => setShowEmailModal(false)} className="px-4 py-2 rounded text-black">Batal</button>
+                  <button onClick={handleProcessOrder} disabled={isLoading} className="px-6 py-2 bg-[#940303] text-white font-bold rounded hover:bg-red-700 disabled:bg-gray-400">
                     {isLoading ? "Memproses..." : "Lanjut"}
                   </button>
                 </div>
@@ -281,12 +294,16 @@ function CashierPage() {
         )}
 
         {showPaymentModal && currentOrder && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-              <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md text-center">
+            <div className="fixed inset-0 bg-[#FFF3D9] bg-opacity-50 flex items-center justify-center">
+              <div className="bg-[#ffe89e] p-8 rounded-lg shadow-xl w-full max-w-md text-center">
                 <h3 className="text-2xl font-bold mb-2">Scan untuk Membayar</h3>
                 <p className="mb-4">Total: <span className="font-bold text-red-600 text-lg">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(currentOrder.totalAmount)}</span></p>
-                <div className="w-64 h-64 bg-gray-300 mx-auto my-4 flex items-center justify-center">
-                  [Gambar QRIS Anda di sini]
+                <div className="mx-auto my-4 flex items-center justify-center">
+                  <Image
+                      src="/qris-dana.png"
+                      alt=""
+                      width={256}
+                      height={362.8}/>
                 </div>
                 <p className="text-sm text-gray-500">Order ID: {currentOrder.orderId}</p>
                 <button onClick={handleConfirmPayment} disabled={isLoading} className="w-full mt-6 bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 disabled:bg-gray-400">
