@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from 'react';
-import { createOrder, confirmPayment } from '@/services/api';
-import { ThemeToggle } from '@/components/theme-toggle'; // Pastikan ini ada
+import { useState, useEffect } from 'react';
+import { createOrder, confirmPayment, getProducts, getToppings } from '@/services/api';
+import { ThemeToggle } from '@/components/theme-toggle';
 
-// --- Tipe Data (Diperbarui) ---
+// --- Tipe Data ---
 type ProductVariant = {
   id: number;
   name: string;
@@ -27,22 +27,12 @@ type CartItem = {
   topping?: Topping;
 };
 
-// --- DATA DUMMY (ganti dengan fetch dari backend Anda) ---
-const DUMMY_VARIANTS: ProductVariant[] = [
-  { id: 101, name: "Isi 4", price: 22000, productName: "Dimsum Mentai" },
-  { id: 102, name: "Isi 4", price: 20000, productName: "Dimsum Original" },
-  { id: 103, name: "Isi 6", price: 30000, productName: "Dimsum Mentai" },
-  { id: 104, name: "Isi 6", price: 28000, productName: "Dimsum Original" },
-];
-
-const DUMMY_TOPPINGS: Topping[] = [
-  { id: 201, name: "Keju Quickmelt", price: 3000 },
-  { id: 202, name: "Nori Flakes", price: 2000 },
-  { id: 203, name: "Katsuobushi", price: 2500 },
-];
 
 // --- Komponen Utama ---
 export default function CashierPage() {
+  const [products, setProducts] = useState<ProductVariant[]>([]);
+  const [toppings, setToppings] = useState<Topping[]>([]);
+  const [isMenuLoading, setIsMenuLoading] = useState(true);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerEmail, setCustomerEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -54,8 +44,28 @@ export default function CashierPage() {
   const [showToppingModal, setShowToppingModal] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
 
-  // --- Fungsi-fungsi Pengelola Keranjang (Cart Management) ---
+  // --- Mengambil Data Awal ---
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        const [productData, toppingData] = await Promise.all([
+          getProducts(),
+          getToppings()
+        ]);
+        setProducts(productData);
+        setToppings(toppingData);
+      } catch (error) {
+        console.error("Failed to load initial data", error);
+        alert("Gagal memuat data dari server!");
+      } finally {
+        setIsMenuLoading(false);
+      }
+    };
 
+    fetchInitialData();
+  }, []);
+
+  // --- Fungsi Pengelola Keranjang ---
   const openToppingModal = (variant: ProductVariant) => {
     setSelectedVariant(variant);
     setShowToppingModal(true);
@@ -84,7 +94,7 @@ export default function CashierPage() {
         topping: topping || undefined
       }];
     });
-    setShowToppingModal(false); // Tutup modal setelah menambah item
+    setShowToppingModal(false);
   };
 
   const updateQuantity = (cartItemId: string, amount: number) => {
@@ -95,7 +105,7 @@ export default function CashierPage() {
           return newQuantity > 0 ? { ...item, quantity: newQuantity } : null;
         }
         return item;
-      }).filter(Boolean) as CartItem[]; // filter(Boolean) untuk menghapus item yang null
+      }).filter(Boolean) as CartItem[];
     });
   };
 
@@ -105,7 +115,7 @@ export default function CashierPage() {
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  // ... (Fungsi handleProcessOrder dan handleConfirmPayment tidak berubah)
+  // --- Fungsi Proses Pembayaran ---
   const handleProcessOrder = async () => {
     if (!customerEmail) {
       alert("Email pelanggan tidak boleh kosong!");
@@ -129,7 +139,6 @@ export default function CashierPage() {
       setShowEmailModal(false);
       setShowPaymentModal(true);
     } catch (error) {
-      console.log(error)
       alert("Gagal membuat pesanan!");
     } finally {
       setIsLoading(false);
@@ -142,7 +151,6 @@ export default function CashierPage() {
     try {
       await confirmPayment(currentOrder.orderId);
       alert(`Pembayaran untuk order ${currentOrder.orderId} berhasil dikonfirmasi!`);
-      // Reset semua state
       setCart([]);
       setCustomerEmail("");
       setCurrentOrder(null);
@@ -158,30 +166,33 @@ export default function CashierPage() {
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
         <header className="p-4 bg-white dark:bg-gray-800 shadow-md flex justify-between items-center">
           <h1 className="text-2xl font-bold text-red-700">Saji Cashier</h1>
+          <ThemeToggle />
         </header>
 
         <main className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-8">
-          {/* Product List */}
           <section className="lg:col-span-2">
             <h2 className="text-xl font-semibold mb-4">Pilih Menu</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-              {DUMMY_VARIANTS.map((variant) => (
-                  <button
-                      key={variant.id}
-                      onClick={() => openToppingModal(variant)}
-                      className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow hover:scale-105 transform transition-transform duration-200 text-left"
-                  >
-                    <p className="font-bold">{variant.productName}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{variant.name}</p>
-                    <p className="mt-2 font-semibold text-red-600">
-                      {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(variant.price)}
-                    </p>
-                  </button>
-              ))}
-            </div>
+            {isMenuLoading ? (
+                <p>Memuat menu...</p>
+            ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {products.map((variant) => (
+                      <button
+                          key={variant.id}
+                          onClick={() => openToppingModal(variant)}
+                          className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow hover:scale-105 transform transition-transform duration-200 text-left"
+                      >
+                        <p className="font-bold">{variant.productName}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{variant.name}</p>
+                        <p className="mt-2 font-semibold text-red-600">
+                          {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(variant.price)}
+                        </p>
+                      </button>
+                  ))}
+                </div>
+            )}
           </section>
 
-          {/* Order Summary */}
           <aside className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg h-fit">
             <h2 className="text-xl font-semibold mb-4 border-b pb-2 dark:border-gray-700">Pesanan</h2>
             {cart.length === 0 ? (
@@ -226,7 +237,6 @@ export default function CashierPage() {
           </aside>
         </main>
 
-        {/* Topping Selection Modal */}
         {showToppingModal && selectedVariant && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
               <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-md">
@@ -234,7 +244,7 @@ export default function CashierPage() {
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{selectedVariant.name}</p>
                 <div className="space-y-2">
                   <h4 className="font-semibold">Pilih Topping:</h4>
-                  {DUMMY_TOPPINGS.map((topping) => (
+                  {toppings.map((topping) => (
                       <button key={topping.id} onClick={() => addToCart(selectedVariant, topping)} className="w-full text-left p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 flex justify-between">
                         <span>{topping.name}</span>
                         <span className="font-semibold">+ {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(topping.price)}</span>
@@ -249,7 +259,6 @@ export default function CashierPage() {
             </div>
         )}
 
-        {/* Email & Payment Modals (tidak berubah) */}
         {showEmailModal && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
               <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md">

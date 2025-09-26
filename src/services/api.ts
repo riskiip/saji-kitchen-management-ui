@@ -21,6 +21,30 @@ const apiClient = axios.create({
     },
 });
 
+// Fungsi untuk mengambil daftar produk
+export const getProducts = async () => {
+    try {
+        const response = await apiClient.get('/products');
+        // Kita hanya butuh data dari output_schema
+        return response.data.output_schema;
+    } catch (error) {
+        console.error("Error fetching products:", error);
+        throw error;
+    }
+};
+
+// Fungsi untuk mengambil daftar topping
+export const getToppings = async () => {
+    try {
+        const response = await apiClient.get('/toppings');
+        return response.data.output_schema;
+    } catch (error) {
+        console.error("Error fetching toppings:", error);
+        throw error;
+    }
+};
+
+
 // Fungsi untuk membuat pesanan baru
 export const createOrder = async (orderData: CreateOrderRequest) => {
     try {
