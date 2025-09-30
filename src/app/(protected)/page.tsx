@@ -19,6 +19,7 @@ type Topping = {
   id: number;
   name: string;
   price: number;
+  imageUrl?: string;
 };
 
 type CartItem = {
@@ -190,18 +191,30 @@ function CashierPage() {
             {isMenuLoading ? (
                 <p>Memuat menu...</p>
             ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {products.map((variant) => (
                       <button
                           key={variant.id}
                           onClick={() => openToppingModal(variant)}
-                          className="p-4 bg-[#ffe89e] text-[#4a4a4a] rounded-lg shadow hover:scale-105 transform transition-transform duration-200 text-left"
+                          className="bg-[#ffe89e] text-[#4a4a4a] rounded-lg shadow hover:scale-105 transform transition-transform duration-200 text-left overflow-hidden"
                       >
-                        <p className="font-bold">{variant.productName}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{variant.name}</p>
-                        <p className="mt-2 font-semibold text-red-600">
-                          {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(variant.price)}
-                        </p>
+                        {variant.imageUrl && (
+                            <div className="w-full h-32 relative">
+                                <Image
+                                    src={variant.imageUrl}
+                                    alt={variant.productName}
+                                    layout="fill"
+                                    objectFit="cover"
+                                />
+                            </div>
+                        )}
+                        <div className="p-4">
+                            <p className="font-bold">{variant.productName}</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">{variant.name}</p>
+                            <p className="mt-2 font-semibold text-red-600">
+                              {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(variant.price)}
+                            </p>
+                        </div>
                       </button>
                   ))}
                 </div>
@@ -260,8 +273,21 @@ function CashierPage() {
                 <div className="space-y-2">
                   <h4 className="font-semibold">Pilih Topping:</h4>
                   {toppings.map((topping) => (
-                      <button key={topping.id} onClick={() => addToCart(selectedVariant, topping)} className="w-full text-left p-3 rounded-lg hover:bg-[#e91e63] hover:text-[#fff] flex justify-between">
-                        <span>{topping.name}</span>
+                      <button key={topping.id} onClick={() => addToCart(selectedVariant, topping)} className="w-full text-left p-3 rounded-lg hover:bg-[#e91e63] hover:text-[#fff] flex items-center justify-between">
+                        <div className="flex items-center">
+                          {topping.imageUrl && (
+                            <div className="w-16 h-16 relative mr-4">
+                              <Image
+                                src={topping.imageUrl}
+                                alt={topping.name}
+                                layout="fill"
+                                objectFit="cover"
+                                className="rounded-md"
+                              />
+                            </div>
+                          )}
+                          <span>{topping.name}</span>
+                        </div>
                         <span className="font-semibold">+ {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(topping.price)}</span>
                       </button>
                   ))}
