@@ -75,6 +75,14 @@ function CashierPage() {
     fetchInitialData();
   }, []);
 
+  const handleProductSelection = (variant: ProductVariant) => {
+    if (variant.name.includes(' + Topping')) {
+      openToppingModal(variant);
+    } else {
+      addToCart(variant, null);
+    }
+  };
+
   // --- Fungsi Pengelola Keranjang ---
   const openToppingModal = (variant: ProductVariant) => {
     setSelectedVariant(variant);
@@ -195,7 +203,7 @@ function CashierPage() {
                   {products.map((variant) => (
                       <button
                           key={variant.id}
-                          onClick={() => openToppingModal(variant)}
+                          onClick={() => handleProductSelection(variant)}
                           className="bg-[#ffe89e] text-[#4a4a4a] rounded-lg shadow hover:scale-105 transform transition-transform duration-200 text-left overflow-hidden"
                       >
                         {variant.imageUrl && (
