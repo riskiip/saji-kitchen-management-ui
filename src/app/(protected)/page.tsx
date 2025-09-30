@@ -11,6 +11,8 @@ type ProductVariant = {
   name: string;
   price: number;
   productName: string;
+  imageUrl?: string; // <-- Tambahan (opsional)
+  description?: string; // <-- Tambahan (opsional)
 };
 
 type Topping = {
