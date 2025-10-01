@@ -13,7 +13,7 @@ export interface StandardApiResponse<T> {
 
 export interface ProductVariantResponse {
     variantId: UUID;
-    name: string;
+    variantName: string;
     price: number;
 }
 

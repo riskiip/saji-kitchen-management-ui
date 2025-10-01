@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { createOrder, confirmPayment, getProducts, getToppings } from '@/services/api';
-import type { UUID, ProductResponse, ToppingResponse, ProductVariantResponse, CreateOrderRequest, OrderResponse } from '@/services/api';
+import type { UUID, ProductResponse, ToppingResponse, ProductVariantResponse, CreateOrderRequest, OrderResponse, StandardApiResponse } from '@/services/api';
 
 // Tipe untuk item di dalam keranjang belanja (cart)
 type CartItem = {
@@ -61,9 +61,14 @@ function CashierPage() {
     fetchInitialData();
   }, []);
 
-  const openToppingModal = (variant: ProductVariantResponse, product: ProductResponse) => {
-    setSelectedVariant({ variant, product });
-    setShowToppingModal(true);
+  const handleProductSelection = (variant: ProductVariantResponse, product: ProductResponse) => {
+    // Logika cerdas: hanya buka modal jika nama varian mengindikasikan butuh topping
+    if (variant.variantName.toLowerCase().includes('+ topping')) {
+      setSelectedVariant({ variant, product });
+      setShowToppingModal(true);
+    } else {
+      addToCart(variant, product, null);
+    }
   };
 
   const addToCart = (variant: ProductVariantResponse, product: ProductResponse, topping: ToppingResponse | null) => {
@@ -81,7 +86,7 @@ function CashierPage() {
         cartId,
         variantId: variant.variantId,
         productName: product.name,
-        variantName: variant.name,
+        variantName: variant.variantName,
         price: finalPrice,
         quantity: 1,
         topping: topping || undefined
@@ -119,6 +124,7 @@ function CashierPage() {
           quantity: item.quantity
         }))
       };
+
       const response = await createOrder(orderData);
       setCurrentOrder(response.output_schema);
       setShowEmailModal(false);
@@ -163,23 +169,15 @@ function CashierPage() {
         <main className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-8">
           <section className="lg:col-span-2">
             <h2 className="text-xl font-semibold mb-4">Pilih Menu</h2>
-
-            {/* Kondisi 1: Tampilkan pesan loading HANYA saat sedang memuat data */}
             {isMenuLoading && <p>Memuat menu...</p>}
-
-            {/* Kondisi 2: Tampilkan pesan 'kosong' JIKA loading selesai DAN tidak ada produk */}
-            {!isMenuLoading && products.length === 0 && (
-                <p className="text-gray-500">Tidak ada produk yang tersedia saat ini.</p>
-            )}
-
-            {/* Kondisi 3: Tampilkan daftar produk JIKA loading selesai DAN ADA produk */}
+            {!isMenuLoading && products.length === 0 && <p className="text-gray-500">Tidak ada produk yang tersedia saat ini.</p>}
             {!isMenuLoading && products.length > 0 && (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {products.map((product) =>
                       product.variants.map((variant) => (
                           <button
                               key={variant.variantId}
-                              onClick={() => openToppingModal(variant, product)}
+                              onClick={() => handleProductSelection(variant, product)}
                               className="bg-[#ffe89e] text-[#4a4a4a] rounded-lg shadow hover:scale-105 transform transition-transform duration-200 text-left overflow-hidden">
                             {product.imageUrl && (
                                 <div className="w-full h-32 relative">
@@ -188,7 +186,7 @@ function CashierPage() {
                             )}
                             <div className="p-4">
                               <p className="font-bold">{product.name}</p>
-                              <p className="text-sm text-gray-600">{variant.name}</p>
+                              <p className="text-sm text-gray-600">{variant.variantName}</p>
                               <p className="mt-2 font-semibold text-red-600">
                                 {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(variant.price)}
                               </p>
@@ -241,7 +239,7 @@ function CashierPage() {
             <div className="fixed inset-0 bg-[#FFF3D9] bg-opacity-80 flex items-center justify-center p-4 z-50">
               <div className="bg-[#ffe89e] p-6 rounded-lg shadow-xl w-full max-w-md">
                 <h3 className="text-lg font-bold mb-1">{selectedVariant.product.name}</h3>
-                <p className="text-sm text-gray-600 mb-4">{selectedVariant.variant.name}</p>
+                <p className="text-sm text-gray-600 mb-4">{selectedVariant.variant.variantName}</p>
                 <div className="space-y-2 max-h-60 overflow-y-auto">
                   <h4 className="font-semibold">Pilih Topping:</h4>
                   {toppings.map((topping) => (
@@ -266,13 +264,7 @@ function CashierPage() {
             <div className="fixed inset-0 bg-[#FFF3D9] bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-[#ffe89e] p-8 rounded-lg shadow-xl w-full max-w-md">
                 <h3 className="text-xl font-bold mb-4">Masukkan Email Pelanggan</h3>
-                <input
-                    type="email"
-                    value={customerEmail}
-                    onChange={(e) => setCustomerEmail(e.target.value)}
-                    placeholder="contoh@email.com"
-                    className="w-full p-2 border rounded border-gray-400 mb-4 text-black"
-                />
+                <input type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} placeholder="contoh@email.com" className="w-full p-2 border rounded border-gray-400 mb-4 text-black" />
                 <div className="flex justify-end gap-4">
                   <button onClick={() => setShowEmailModal(false)} className="px-4 py-2 rounded text-black">Batal</button>
                   <button onClick={handleProcessOrder} disabled={isProcessing} className="px-6 py-2 bg-[#940303] text-white font-bold rounded hover:bg-red-700 disabled:bg-gray-400">
