@@ -1,86 +1,75 @@
 // src/services/api.ts
 import axios from 'axios';
 
-// Definisikan tipe data sesuai DTO backend
-interface OrderItemRequest {
-    variantId: number;
-    toppingId: number | null;
+// ===================================================================
+// 1. DEFINISIKAN ULANG TIPE DATA SESUAI DTO BACKEND
+// ===================================================================
+export type UUID = string;
+
+export interface StandardApiResponse<T> {
+    status_schema: any; // Anda bisa definisikan lebih detail jika perlu
+    output_schema: T;
+}
+
+export interface ProductVariantResponse {
+    variantId: UUID;
+    name: string;
+    price: number;
+}
+
+export interface ProductResponse {
+    productId: UUID;
+    name: string;
+    description: string | null;
+    imageUrl: string | null;
+    isActive: boolean;
+    variants: ProductVariantResponse[];
+}
+
+export interface ToppingResponse {
+    toppingId: UUID;
+    name: string;
+    price: number;
+    imageUrl: string | null;
+    isActive: boolean;
+}
+
+export interface OrderItemRequest {
+    variantId: UUID;
+    toppingId: UUID | null;
     quantity: number;
 }
 
-interface CreateOrderRequest {
+export interface CreateOrderRequest {
     customerEmail: string;
     items: OrderItemRequest[];
 }
 
-interface LoginRequest {
+export interface OrderResponse {
+    orderId: string;
+    totalAmount: number;
+    paymentStatus: string;
+}
+
+export interface LoginRequest {
     username: string;
     password: string;
 }
 
-// Buat instance axios dengan URL dasar backend Anda
+export interface LoginResponse {
+    token: string;
+}
+
+// ===================================================================
+// 2. BUAT API CLIENT DENGAN INTERCEPTOR
+// ===================================================================
 const apiClient = axios.create({
-    baseURL: 'http://localhost:8080/api/v1', // <-- Ganti jika URL backend berbeda
+    baseURL: 'http://localhost:8080/api/v1', // Sesuaikan jika perlu
     headers: {
         'Content-Type': 'application/json',
     },
 });
 
-// Fungsi untuk mengambil daftar produk
-export const getProducts = async () => {
-    try {
-        const response = await apiClient.get('/products');
-        // Kita hanya butuh data dari output_schema
-        return response.data.output_schema;
-    } catch (error) {
-        console.error("Error fetching products:", error);
-        throw error;
-    }
-};
-
-// Fungsi untuk mengambil daftar topping
-export const getToppings = async () => {
-    try {
-        const response = await apiClient.get('/toppings');
-        return response.data.output_schema;
-    } catch (error) {
-        console.error("Error fetching toppings:", error);
-        throw error;
-    }
-};
-
-
-// Fungsi untuk membuat pesanan baru
-export const createOrder = async (orderData: CreateOrderRequest) => {
-    try {
-        console.log('orderData: ', orderData);
-        const response = await apiClient.post('/orders', orderData);
-        return response.data; // Mengembalikan seluruh StandardApiResponse
-    } catch (error) {
-        // Handle error (misal: log atau lempar error custom)
-        console.error("Error creating order:", error);
-        throw error;
-    }
-};
-
-// Fungsi untuk konfirmasi pembayaran
-export const confirmPayment = async (orderId: string) => {
-    try {
-        const response = await apiClient.put(`/orders/${orderId}/payment-confirmation`);
-        return response.data;
-    } catch (error) {
-        console.error("Error confirming payment:", error);
-        throw error;
-    }
-};
-
-// Fungsi login
-export const login = async (credentials: LoginRequest) => {
-    const response = await apiClient.post('/auth/login', credentials);
-    return response.data;
-};
-
-// Interceptor untuk menyisipkan token
 apiClient.interceptors.request.use(config => {
     const token = localStorage.getItem('authToken');
     if (token) {
@@ -90,3 +79,33 @@ apiClient.interceptors.request.use(config => {
 }, error => {
     return Promise.reject(error);
 });
+
+// ===================================================================
+// 3. PERBAIKI FUNGSI-FUNGSI API
+// ===================================================================
+
+export const getProducts = async (): Promise<ProductResponse[]> => {
+    const response = await apiClient.get('/menu/products');
+    return response.data; // <-- KOREKSI: Tidak ada lagi 'output_schema'
+};
+
+export const getToppings = async (): Promise<ToppingResponse[]> => {
+    const response = await apiClient.get('/menu/toppings');
+    return response.data; // <-- KOREKSI: Tidak ada lagi 'output_schema'
+};
+
+export const createOrder = async (orderData: CreateOrderRequest): Promise<StandardApiResponse<OrderResponse>> => {
+    const response = await apiClient.post('/orders', orderData);
+    return response.data; // Sekarang tipe kembaliannya cocok dengan struktur JSON asli
+};
+
+export const confirmPayment = async (orderId: string) => {
+    // <-- KOREKSI: Endpoint dan method disesuaikan
+    const response = await apiClient.put(`/orders/${orderId}/payment-confirmation`);
+    return response.data;
+};
+
+export const login = async (credentials: LoginRequest): Promise<LoginResponse> => {
+    const response = await apiClient.post('/auth/login', credentials);
+    return response.data;
+};

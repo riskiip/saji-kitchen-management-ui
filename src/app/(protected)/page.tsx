@@ -1,113 +1,88 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { createOrder, confirmPayment, getProducts, getToppings } from '@/services/api';
-import {useRouter} from "next/navigation";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { createOrder, confirmPayment, getProducts, getToppings } from '@/services/api';
+import type { UUID, ProductResponse, ToppingResponse, ProductVariantResponse, CreateOrderRequest, OrderResponse } from '@/services/api';
 
-// --- Tipe Data ---
-type ProductVariant = {
-  id: number;
-  name: string;
-  price: number;
-  productName: string;
-  imageUrl?: string; // <-- Tambahan (opsional)
-  description?: string; // <-- Tambahan (opsional)
-};
-
-type Topping = {
-  id: number;
-  name: string;
-  price: number;
-  imageUrl?: string;
-};
-
+// Tipe untuk item di dalam keranjang belanja (cart)
 type CartItem = {
-  id: string; // ID unik untuk item di keranjang, cth: "101-201"
-  variantId: number;
-  name: string;
+  cartId: string; // ID unik untuk item di keranjang, cth: "uuid-variant-uuid-topping"
+  variantId: UUID;
+  productName: string;
+  variantName: string;
   price: number;
   quantity: number;
-  topping?: Topping;
+  topping?: ToppingResponse;
 };
-
 
 // --- Komponen Utama ---
 function CashierPage() {
   const router = useRouter();
-  const [products, setProducts] = useState<ProductVariant[]>([]);
-  const [toppings, setToppings] = useState<Topping[]>([]);
-  const [isMenuLoading, setIsMenuLoading] = useState(true);
+
+  // State untuk data menu dari API
+  const [products, setProducts] = useState<ProductResponse[]>([]);
+  const [toppings, setToppings] = useState<ToppingResponse[]>([]);
+
+  // State untuk order yang sedang dibuat
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerEmail, setCustomerEmail] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [currentOrder, setCurrentOrder] = useState<{ orderId: string, totalAmount: number } | null>(null);
+  const [currentOrder, setCurrentOrder] = useState<OrderResponse | null>(null);
 
-  // State untuk Modal
+  // State untuk interaksi UI
+  const [isMenuLoading, setIsMenuLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showToppingModal, setShowToppingModal] = useState(false);
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<{ variant: ProductVariantResponse; product: ProductResponse } | null>(null);
 
   const handleLogout = () => {
-    localStorage.removeItem('authToken'); // Hapus token dari penyimpanan
-    router.push('/login'); // Arahkan kembali ke halaman login
+    localStorage.removeItem('authToken');
+    router.push('/login');
   };
 
-  // --- Mengambil Data Awal ---
+  // Mengambil data menu dari backend saat halaman dimuat
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const [productData, toppingData] = await Promise.all([
-          getProducts(),
-          getToppings()
-        ]);
-        setProducts(productData);
-        setToppings(toppingData);
+        const [productData, toppingData] = await Promise.all([getProducts(), getToppings()]);
+        // Filter hanya item yang aktif untuk ditampilkan di menu
+        setProducts(productData.filter(p => (p as any).active));
+        setToppings(toppingData.filter(t => (t as any).active));
       } catch (error) {
-        console.error("Failed to load initial data", error);
+        console.error("Gagal memuat data awal", error);
         alert("Gagal memuat data dari server!");
       } finally {
         setIsMenuLoading(false);
       }
     };
-
     fetchInitialData();
   }, []);
 
-  const handleProductSelection = (variant: ProductVariant) => {
-    if (variant.name.includes(' + Topping')) {
-      openToppingModal(variant);
-    } else {
-      addToCart(variant, null);
-    }
-  };
-
-  // --- Fungsi Pengelola Keranjang ---
-  const openToppingModal = (variant: ProductVariant) => {
-    setSelectedVariant(variant);
+  const openToppingModal = (variant: ProductVariantResponse, product: ProductResponse) => {
+    setSelectedVariant({ variant, product });
     setShowToppingModal(true);
   };
 
-  const addToCart = (variant: ProductVariant, topping: Topping | null) => {
-    const cartItemId = `${variant.id}-${topping?.id || 'none'}`;
-    const itemName = `${variant.productName} (${variant.name})` + (topping ? ` + ${topping.name}` : '');
-    const itemPrice = variant.price + (topping?.price || 0);
+  const addToCart = (variant: ProductVariantResponse, product: ProductResponse, topping: ToppingResponse | null) => {
+    const cartId = `${variant.variantId}-${topping?.toppingId || 'none'}`;
+    const finalPrice = variant.price + (topping?.price || 0);
 
     setCart((prevCart) => {
-      const existingItem = prevCart.find((item) => item.id === cartItemId);
+      const existingItem = prevCart.find((item) => item.cartId === cartId);
       if (existingItem) {
         return prevCart.map((item) =>
-            item.id === cartItemId
-                ? { ...item, quantity: item.quantity + 1 }
-                : item
+            item.cartId === cartId ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
       return [...prevCart, {
-        id: cartItemId,
-        variantId: variant.id,
-        name: itemName,
-        price: itemPrice,
+        cartId,
+        variantId: variant.variantId,
+        productName: product.name,
+        variantName: variant.name,
+        price: finalPrice,
         quantity: 1,
         topping: topping || undefined
       }];
@@ -115,57 +90,49 @@ function CashierPage() {
     setShowToppingModal(false);
   };
 
-  const updateQuantity = (cartItemId: string, amount: number) => {
-    setCart((prevCart) => {
-      return prevCart.map((item) => {
-        if (item.id === cartItemId) {
-          const newQuantity = item.quantity + amount;
-          return newQuantity > 0 ? { ...item, quantity: newQuantity } : null;
-        }
-        return item;
-      }).filter(Boolean) as CartItem[];
-    });
+  const updateQuantity = (cartId: string, amount: number) => {
+    setCart((prevCart) =>
+        prevCart.map(item =>
+            item.cartId === cartId ? { ...item, quantity: item.quantity + amount } : item
+        ).filter(item => item.quantity > 0)
+    );
   };
 
-  const removeFromCart = (cartItemId: string) => {
-    setCart(prevCart => prevCart.filter(item => item.id !== cartItemId));
+  const removeFromCart = (cartId: string) => {
+    setCart(prevCart => prevCart.filter(item => item.cartId !== cartId));
   };
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  // --- Fungsi Proses Pembayaran ---
   const handleProcessOrder = async () => {
     if (!customerEmail) {
       alert("Email pelanggan tidak boleh kosong!");
       return;
     }
-    setIsLoading(true);
+    setIsProcessing(true);
     try {
-      const orderData = {
+      const orderData: CreateOrderRequest = {
         customerEmail,
         items: cart.map(item => ({
           variantId: item.variantId,
-          toppingId: item.topping?.id || null,
+          toppingId: item.topping?.toppingId || null,
           quantity: item.quantity
         }))
       };
       const response = await createOrder(orderData);
-      setCurrentOrder({
-        orderId: response.output_schema.orderId,
-        totalAmount: response.output_schema.totalAmount,
-      });
+      setCurrentOrder(response.output_schema);
       setShowEmailModal(false);
       setShowPaymentModal(true);
     } catch (error) {
       alert("Gagal membuat pesanan!");
     } finally {
-      setIsLoading(false);
+      setIsProcessing(false);
     }
   };
 
   const handleConfirmPayment = async () => {
     if (!currentOrder) return;
-    setIsLoading(true);
+    setIsProcessing(true);
     try {
       await confirmPayment(currentOrder.orderId);
       alert(`Pembayaran untuk order ${currentOrder.orderId} berhasil dikonfirmasi!`);
@@ -176,13 +143,13 @@ function CashierPage() {
     } catch (error) {
       alert("Gagal mengonfirmasi pembayaran!");
     } finally {
-      setIsLoading(false);
+      setIsProcessing(false);
     }
   };
 
   return (
       <div className="min-h-screen bg-[#FFF3D9] text-[#4a4a4a]">
-        <header className="p-4 shadow-md flex justify-between items-center">
+        <header className="p-4 shadow-md flex justify-between items-center bg-white">
           <h1 className="text-2xl font-bold text-[#940303]">Saji Cashier</h1>
           <button
               onClick={handleLogout}
@@ -196,75 +163,72 @@ function CashierPage() {
         <main className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-8">
           <section className="lg:col-span-2">
             <h2 className="text-xl font-semibold mb-4">Pilih Menu</h2>
-            {isMenuLoading ? (
-                <p>Memuat menu...</p>
-            ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {products.map((variant) => (
-                      <button
-                          key={variant.id}
-                          onClick={() => handleProductSelection(variant)}
-                          className="bg-[#ffe89e] text-[#4a4a4a] rounded-lg shadow hover:scale-105 transform transition-transform duration-200 text-left overflow-hidden"
-                      >
-                        {variant.imageUrl && (
-                            <div className="w-full h-32 relative">
-                                <Image
-                                    src={variant.imageUrl}
-                                    alt={variant.productName}
-                                    layout="fill"
-                                    objectFit="cover"
-                                />
+
+            {/* Kondisi 1: Tampilkan pesan loading HANYA saat sedang memuat data */}
+            {isMenuLoading && <p>Memuat menu...</p>}
+
+            {/* Kondisi 2: Tampilkan pesan 'kosong' JIKA loading selesai DAN tidak ada produk */}
+            {!isMenuLoading && products.length === 0 && (
+                <p className="text-gray-500">Tidak ada produk yang tersedia saat ini.</p>
+            )}
+
+            {/* Kondisi 3: Tampilkan daftar produk JIKA loading selesai DAN ADA produk */}
+            {!isMenuLoading && products.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {products.map((product) =>
+                      product.variants.map((variant) => (
+                          <button
+                              key={variant.variantId}
+                              onClick={() => openToppingModal(variant, product)}
+                              className="bg-[#ffe89e] text-[#4a4a4a] rounded-lg shadow hover:scale-105 transform transition-transform duration-200 text-left overflow-hidden">
+                            {product.imageUrl && (
+                                <div className="w-full h-32 relative">
+                                  <Image src={product.imageUrl} alt={product.name} layout="fill" objectFit="cover" />
+                                </div>
+                            )}
+                            <div className="p-4">
+                              <p className="font-bold">{product.name}</p>
+                              <p className="text-sm text-gray-600">{variant.name}</p>
+                              <p className="mt-2 font-semibold text-red-600">
+                                {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(variant.price)}
+                              </p>
                             </div>
-                        )}
-                        <div className="p-4">
-                            <p className="font-bold">{variant.productName}</p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">{variant.name}</p>
-                            <p className="mt-2 font-semibold text-red-600">
-                              {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(variant.price)}
-                            </p>
-                        </div>
-                      </button>
-                  ))}
+                          </button>
+                      ))
+                  )}
                 </div>
             )}
           </section>
 
-          <aside className="bg-[#ffe89e]  p-6 rounded-lg shadow-lg h-fit">
-            <h2 className="text-xl font-semibold mb-4 border-b pb-2 dark:border-gray-700">Pesanan</h2>
-            {cart.length === 0 ? (
-                <p className="text-gray-500">Keranjang masih kosong.</p>
-            ) : (
+          <aside className="bg-[#ffe89e] p-6 rounded-lg shadow-lg h-fit">
+            <h2 className="text-xl font-semibold mb-4 border-b pb-2 border-gray-400">Pesanan</h2>
+            {cart.length === 0 ? <p className="text-gray-500">Keranjang masih kosong.</p> : (
                 <>
                   <ul className="space-y-4 max-h-96 overflow-y-auto pr-2">
                     {cart.map((item) => (
-                        <li key={item.id} className="flex justify-between items-center text-sm">
-                          <div className="flex-1">
-                            <p className="font-semibold">{item.name}</p>
+                        <li key={item.cartId} className="flex justify-between items-center text-sm">
+                          <div className="flex-1 mr-2">
+                            <p className="font-semibold">{item.productName} ({item.variantName})</p>
+                            {item.topping && <p className="text-xs text-gray-500">+ {item.topping.name}</p>}
                             <div className="flex items-center gap-2 mt-1">
-                              <button onClick={() => updateQuantity(item.id, -1)} className="w-6 h-6 rounded-full bg-[#940303] text-[#fff] font-bold">-</button>
+                              <button onClick={() => updateQuantity(item.cartId, -1)} className="w-6 h-6 rounded-full bg-[#940303] text-white font-bold">-</button>
                               <span>{item.quantity}</span>
-                              <button onClick={() => updateQuantity(item.id, 1)} className="w-6 h-6 rounded-full bg-[#940303] text-[#fff] font-bold">+</button>
+                              <button onClick={() => updateQuantity(item.cartId, 1)} className="w-6 h-6 rounded-full bg-[#940303] text-white font-bold">+</button>
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="font-bold">
-                              {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(item.price * item.quantity)}
-                            </p>
-                            <button onClick={() => removeFromCart(item.id)} className="text-xs text-red-500 hover:underline">Hapus</button>
+                            <p className="font-bold">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(item.price * item.quantity)}</p>
+                            <button onClick={() => removeFromCart(item.cartId)} className="text-xs text-red-500 hover:underline">Hapus</button>
                           </div>
                         </li>
                     ))}
                   </ul>
-                  <div className="mt-6 border-t pt-4 dark:border-gray-700">
+                  <div className="mt-6 border-t pt-4 border-gray-400">
                     <div className="flex justify-between font-bold text-lg">
                       <span>Total</span>
-                      <span>{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(total)}</span>
+                      <span>{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(total)}</span>
                     </div>
-                    <button
-                        onClick={() => setShowEmailModal(true)}
-                        disabled={cart.length === 0}
-                        className="w-full mt-4 bg-[#940303] text-white font-bold py-3 rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                    >
+                    <button onClick={() => setShowEmailModal(true)} disabled={cart.length === 0} className="w-full mt-4 bg-[#940303] text-white font-bold py-3 rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
                       Bayar
                     </button>
                   </div>
@@ -274,42 +238,32 @@ function CashierPage() {
         </main>
 
         {showToppingModal && selectedVariant && (
-            <div className="fixed inset-0 bg-[#FFF3D9] bg-opacity-80 flex items-center justify-center p-4">
+            <div className="fixed inset-0 bg-[#FFF3D9] bg-opacity-80 flex items-center justify-center p-4 z-50">
               <div className="bg-[#ffe89e] p-6 rounded-lg shadow-xl w-full max-w-md">
-                <h3 className="text-lg font-bold mb-1">{selectedVariant.productName}</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{selectedVariant.name}</p>
-                <div className="space-y-2">
+                <h3 className="text-lg font-bold mb-1">{selectedVariant.product.name}</h3>
+                <p className="text-sm text-gray-600 mb-4">{selectedVariant.variant.name}</p>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
                   <h4 className="font-semibold">Pilih Topping:</h4>
                   {toppings.map((topping) => (
-                      <button key={topping.id} onClick={() => addToCart(selectedVariant, topping)} className="w-full text-left p-3 rounded-lg hover:bg-[#e91e63] hover:text-[#fff] flex items-center justify-between">
+                      <button key={topping.toppingId} onClick={() => addToCart(selectedVariant.variant, selectedVariant.product, topping)} className="w-full text-left p-3 rounded-lg hover:bg-red-500 hover:text-white flex items-center justify-between transition-colors">
                         <div className="flex items-center">
-                          {topping.imageUrl && (
-                            <div className="w-16 h-16 relative mr-4">
-                              <Image
-                                src={topping.imageUrl}
-                                alt={topping.name}
-                                layout="fill"
-                                objectFit="cover"
-                                className="rounded-md"
-                              />
-                            </div>
-                          )}
+                          {topping.imageUrl && <Image src={topping.imageUrl} alt={topping.name} width={48} height={48} className="rounded-md mr-4" />}
                           <span>{topping.name}</span>
                         </div>
-                        <span className="font-semibold">+ {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(topping.price)}</span>
+                        <span className="font-semibold">+ {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(topping.price)}</span>
                       </button>
                   ))}
-                  <button onClick={() => addToCart(selectedVariant, null)} className="w-full text-left p-3 rounded-lg hover:bg-[#e91e63] hover:text-[#fff] font-semibold">
+                  <button onClick={() => addToCart(selectedVariant.variant, selectedVariant.product, null)} className="w-full text-left p-3 rounded-lg hover:bg-gray-500 hover:text-white font-semibold">
                     Tanpa Topping
                   </button>
                 </div>
-                <button onClick={() => setShowToppingModal(false)} className="mt-6 w-full py-2 rounded bg-[#940303] text-[#fff]">Batal</button>
+                <button onClick={() => setShowToppingModal(false)} className="mt-6 w-full py-2 rounded bg-[#940303] text-white">Batal</button>
               </div>
             </div>
         )}
 
         {showEmailModal && (
-            <div className="fixed inset-0 bg-[#FFF3D9] bg-opacity-50 flex items-center justify-center">
+            <div className="fixed inset-0 bg-[#FFF3D9] bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-[#ffe89e] p-8 rounded-lg shadow-xl w-full max-w-md">
                 <h3 className="text-xl font-bold mb-4">Masukkan Email Pelanggan</h3>
                 <input
@@ -317,12 +271,12 @@ function CashierPage() {
                     value={customerEmail}
                     onChange={(e) => setCustomerEmail(e.target.value)}
                     placeholder="contoh@email.com"
-                    className="w-full p-2 border rounded dark:border-gray-600 mb-4 text-black"
+                    className="w-full p-2 border rounded border-gray-400 mb-4 text-black"
                 />
                 <div className="flex justify-end gap-4">
                   <button onClick={() => setShowEmailModal(false)} className="px-4 py-2 rounded text-black">Batal</button>
-                  <button onClick={handleProcessOrder} disabled={isLoading} className="px-6 py-2 bg-[#940303] text-white font-bold rounded hover:bg-red-700 disabled:bg-gray-400">
-                    {isLoading ? "Memproses..." : "Lanjut"}
+                  <button onClick={handleProcessOrder} disabled={isProcessing} className="px-6 py-2 bg-[#940303] text-white font-bold rounded hover:bg-red-700 disabled:bg-gray-400">
+                    {isProcessing ? "Memproses..." : "Lanjut"}
                   </button>
                 </div>
               </div>
@@ -330,20 +284,16 @@ function CashierPage() {
         )}
 
         {showPaymentModal && currentOrder && (
-            <div className="fixed inset-0 bg-[#FFF3D9] bg-opacity-50 flex items-center justify-center">
+            <div className="fixed inset-0 bg-[#FFF3D9] bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-[#ffe89e] p-8 rounded-lg shadow-xl w-full max-w-md text-center">
                 <h3 className="text-2xl font-bold mb-2">Scan untuk Membayar</h3>
-                <p className="mb-4">Total: <span className="font-bold text-red-600 text-lg">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(currentOrder.totalAmount)}</span></p>
+                <p className="mb-4">Total: <span className="font-bold text-red-600 text-lg">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(currentOrder.totalAmount)}</span></p>
                 <div className="mx-auto my-4 flex items-center justify-center">
-                  <Image
-                      src="/qris-dana.png"
-                      alt=""
-                      width={256}
-                      height={362.8}/>
+                  <Image src="/qris-dana.png" alt="QRIS Payment" width={256} height={362.8} />
                 </div>
                 <p className="text-sm text-gray-500">Order ID: {currentOrder.orderId}</p>
-                <button onClick={handleConfirmPayment} disabled={isLoading} className="w-full mt-6 bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 disabled:bg-gray-400">
-                  {isLoading ? "Mengonfirmasi..." : "Konfirmasi Pembayaran"}
+                <button onClick={handleConfirmPayment} disabled={isProcessing} className="w-full mt-6 bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 disabled:bg-gray-400">
+                  {isProcessing ? "Mengonfirmasi..." : "Konfirmasi Pembayaran"}
                 </button>
               </div>
             </div>
