@@ -46,8 +46,8 @@ export default function ProtectedLayout({
 
     // Tampilkan loading atau null selama pengecekan, jangan tampilkan konten halaman
     if (!isAuthorized) {
-        return null; // atau <p>Loading...</p>
+        return null;
     }
 
-    return <>{children}</>; // Jika sudah terotorisasi, tampilkan halaman
+    return <>{children}</>;
 }

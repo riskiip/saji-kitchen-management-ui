@@ -1,13 +1,9 @@
-// src/services/api.ts
 import axios from 'axios';
 
-// ===================================================================
-// 1. DEFINISIKAN ULANG TIPE DATA SESUAI DTO BACKEND
-// ===================================================================
 export type UUID = string;
 
 export interface StandardApiResponse<T> {
-    status_schema: any; // Anda bisa definisikan lebih detail jika perlu
+    status_schema: any;
     output_schema: T;
 }
 
@@ -60,11 +56,8 @@ export interface LoginResponse {
     token: string;
 }
 
-// ===================================================================
-// 2. BUAT API CLIENT DENGAN INTERCEPTOR
-// ===================================================================
 const apiClient = axios.create({
-    baseURL: 'http://localhost:8080/api/v1', // Sesuaikan jika perlu
+    baseURL: 'https://saji-kitchen-service.up.railway.app/api/v1', // Sesuaikan jika perlu
     headers: {
         'Content-Type': 'application/json',
     },
@@ -80,27 +73,22 @@ apiClient.interceptors.request.use(config => {
     return Promise.reject(error);
 });
 
-// ===================================================================
-// 3. PERBAIKI FUNGSI-FUNGSI API
-// ===================================================================
-
 export const getProducts = async (): Promise<ProductResponse[]> => {
     const response = await apiClient.get('/menu/products');
-    return response.data; // <-- KOREKSI: Tidak ada lagi 'output_schema'
+    return response.data;
 };
 
 export const getToppings = async (): Promise<ToppingResponse[]> => {
     const response = await apiClient.get('/menu/toppings');
-    return response.data; // <-- KOREKSI: Tidak ada lagi 'output_schema'
+    return response.data;
 };
 
 export const createOrder = async (orderData: CreateOrderRequest): Promise<StandardApiResponse<OrderResponse>> => {
     const response = await apiClient.post('/orders', orderData);
-    return response.data; // Sekarang tipe kembaliannya cocok dengan struktur JSON asli
+    return response.data;
 };
 
 export const confirmPayment = async (orderId: string) => {
-    // <-- KOREKSI: Endpoint dan method disesuaikan
     const response = await apiClient.put(`/orders/${orderId}/payment-confirmation`);
     return response.data;
 };

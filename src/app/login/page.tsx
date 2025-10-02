@@ -1,4 +1,3 @@
-// src/app/login/page.tsx
 "use client";
 
 import { useState } from 'react';
@@ -18,7 +17,7 @@ export default function LoginPage() {
             const response = await login({ username, password });
             if (response.token) {
                 localStorage.setItem('authToken', response.token);
-                router.push('/'); // Redirect ke halaman kasir
+                router.push('/');
             }
         } catch (err) {
             setError('Username atau password salah.');
