@@ -19,7 +19,7 @@ export default function LoginPage() {
                 localStorage.setItem('authToken', response.token);
                 router.push('/');
             }
-        } catch (err) {
+        } catch {
             setError('Username atau password salah.');
         }
     };

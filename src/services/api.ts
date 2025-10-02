@@ -2,8 +2,13 @@ import axios from 'axios';
 
 export type UUID = string;
 
+export interface StatusSchema {
+    code: string;
+    message: string;
+}
+
 export interface StandardApiResponse<T> {
-    status_schema: any;
+    status_schema: StatusSchema;
     output_schema: T;
 }
 
@@ -18,7 +23,7 @@ export interface ProductResponse {
     name: string;
     description: string | null;
     imageUrl: string | null;
-    isActive: boolean;
+    active: boolean;
     variants: ProductVariantResponse[];
 }
 
@@ -27,7 +32,7 @@ export interface ToppingResponse {
     name: string;
     price: number;
     imageUrl: string | null;
-    isActive: boolean;
+    active: boolean;
 }
 
 export interface OrderItemRequest {

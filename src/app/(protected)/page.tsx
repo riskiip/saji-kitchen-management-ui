@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { createOrder, confirmPayment, getProducts, getToppings } from '@/services/api';
-import type { UUID, ProductResponse, ToppingResponse, ProductVariantResponse, CreateOrderRequest, OrderResponse, StandardApiResponse } from '@/services/api';
+import type { UUID, ProductResponse, ToppingResponse, ProductVariantResponse, CreateOrderRequest, OrderResponse } from '@/services/api';
 
 // Tipe untuk item di dalam keranjang belanja (cart)
 type CartItem = {
@@ -49,8 +49,8 @@ function CashierPage() {
       try {
         const [productData, toppingData] = await Promise.all([getProducts(), getToppings()]);
         // Filter hanya item yang aktif untuk ditampilkan di menu
-        setProducts(productData.filter(p => (p as any).active));
-        setToppings(toppingData.filter(t => (t as any).active));
+        setProducts(productData.filter(p => p.active));
+        setToppings(toppingData.filter(t => t.active));
       } catch (error) {
         console.error("Gagal memuat data awal", error);
         alert("Gagal memuat data dari server!");
@@ -129,7 +129,7 @@ function CashierPage() {
       setCurrentOrder(response.output_schema);
       setShowEmailModal(false);
       setShowPaymentModal(true);
-    } catch (error) {
+    } catch {
       alert("Gagal membuat pesanan!");
     } finally {
       setIsProcessing(false);
@@ -146,7 +146,7 @@ function CashierPage() {
       setCustomerEmail("");
       setCurrentOrder(null);
       setShowPaymentModal(false);
-    } catch (error) {
+    } catch {
       alert("Gagal mengonfirmasi pembayaran!");
     } finally {
       setIsProcessing(false);

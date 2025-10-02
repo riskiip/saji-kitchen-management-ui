@@ -38,7 +38,7 @@ export default function ProtectedLayout({
             } else {
                 setIsAuthorized(true); // Pengguna sah, izinkan tampilkan konten
             }
-        } catch (error) {
+        } catch {
             localStorage.removeItem('authToken');
             router.replace('/login');
         }
