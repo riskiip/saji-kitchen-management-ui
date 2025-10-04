@@ -226,7 +226,7 @@ function CashierPage() {
                       <span>Total</span>
                       <span>{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(total)}</span>
                     </div>
-                    <button /*onClick={() => setShowEmailModal(true)}*/ disabled={cart.length === 0} className="w-full mt-4 bg-[#940303] text-white font-bold py-3 rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                    <button onClick={() => setShowEmailModal(true)} disabled={cart.length === 0} className="w-full mt-4 bg-[#940303] text-white font-bold py-3 rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
                       Bayar
                     </button>
                   </div>
@@ -260,20 +260,20 @@ function CashierPage() {
             </div>
         )}
 
-        {/*{showEmailModal && (*/}
-        {/*    <div className="fixed inset-0 bg-[#FFF3D9] bg-opacity-50 flex items-center justify-center z-50">*/}
-        {/*      <div className="bg-[#ffe89e] p-8 rounded-lg shadow-xl w-full max-w-md">*/}
-        {/*        <h3 className="text-xl font-bold mb-4">Masukkan Email Pelanggan</h3>*/}
-        {/*        <input type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} placeholder="contoh@email.com" className="w-full p-2 border rounded border-gray-400 mb-4 text-black" />*/}
-        {/*        <div className="flex justify-end gap-4">*/}
-        {/*          <button onClick={() => setShowEmailModal(false)} className="px-4 py-2 rounded text-black">Batal</button>*/}
-        {/*          <button onClick={handleProcessOrder} disabled={isProcessing} className="px-6 py-2 bg-[#940303] text-white font-bold rounded hover:bg-red-700 disabled:bg-gray-400">*/}
-        {/*            {isProcessing ? "Memproses..." : "Lanjut"}*/}
-        {/*          </button>*/}
-        {/*        </div>*/}
-        {/*      </div>*/}
-        {/*    </div>*/}
-        {/*)}*/}
+        {showEmailModal && (
+            <div className="fixed inset-0 bg-[#FFF3D9] bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-[#ffe89e] p-8 rounded-lg shadow-xl w-full max-w-md">
+                <h3 className="text-xl font-bold mb-4">Masukkan Email Pelanggan</h3>
+                <input type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} placeholder="contoh@email.com" className="w-full p-2 border rounded border-gray-400 mb-4 text-black" />
+                <div className="flex justify-end gap-4">
+                  <button onClick={() => setShowEmailModal(false)} className="px-4 py-2 rounded text-black">Batal</button>
+                  <button onClick={handleProcessOrder} disabled={isProcessing} className="px-6 py-2 bg-[#940303] text-white font-bold rounded hover:bg-red-700 disabled:bg-gray-400">
+                    {isProcessing ? "Memproses..." : "Lanjut"}
+                  </button>
+                </div>
+              </div>
+            </div>
+        )}
 
         {showPaymentModal && currentOrder && (
             <div className="fixed inset-0 bg-[#FFF3D9] bg-opacity-50 flex items-center justify-center z-50">
